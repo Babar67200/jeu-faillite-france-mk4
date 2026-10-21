@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>La France en Faillite - Simulateur Satirique</title>
+  <style>
+    :root {
+      --bg-main: #f5f2eb;
+      --bg-card: #ffffff;
+      --border-color: #dcd6cd;
+      --text-main: #2b2d42;
+      --text-muted: #6c757d;
+      --accent-blue: #0284c7;
+      --accent-red: #dc2626;
+      --accent-green: #16a34a;
+      --accent-yellow: #d97706;
+      --accent-purple: #7c3aed;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #game-app {
+      width: 100vw;
+      height: 100vh;
+      max-width: 1300px;
+      max-height: 850px;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-main);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    /* HUD */
+    #hud {
+      height: 80px;
+      background: #ede8dc;
+      border-bottom: 1px solid var(--border-color);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      padding: 10px 16px;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .hud-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .highlight-card {
+      border-color: var(--accent-yellow);
+      background: #fffbeb;
+    }
+
+    .hud-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+
+    .hud-value {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--accent-blue);
+    }
+
+    .Swiss-gold { color: var(--accent-yellow); }
+
+    .hud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .hud-sub { font-size: 11px; font-weight: 700; }
+
+    .bar-container {
+      width: 100%;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .bar-fill { height: 100%; transition: width 0.3s ease; }
+    .bar-fill.pop { background: var(--accent-green); }
+    .bar-fill.tension { background: var(--accent-red); }
+
+    /* MAP CONTAINER */
+    #game-body {
+      flex: 1;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #map-container {
+      flex: 1.4;
+      position: relative;
+      background-color: #0b2531;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .map-inner-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #europe-map-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    #cities-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .city-marker {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      background-color: var(--accent-red);
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 0 6px rgba(0,0,0,0.8);
+    }
+
+    .dot.capital {
+      width: 13px;
+      height: 13px;
+      background-color: var(--accent-yellow);
+      border-color: #ffffff;
+    }
+
+    .cityName {
+      font-size: 10px;
+      font-weight: 800;
+      color: #ffffff;
+      text-shadow: 1px 1px 2px #000, -1px -1px 2px #000, 1px -1px 2px #000, -1px 1px 2px #000;
+      margin-top: 2px;
+      white-space: nowrap;
+    }
+
+    #target-beacon {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .beacon-ring {
+      width: 34px;
+      height: 34px;
+      border: 3px solid var(--accent-yellow);
+      border-radius: 50%;
+      animation: beaconRing 1.2s infinite ease-out;
+      box-shadow: 0 0 12px var(--accent-yellow);
+    }
+
+    @keyframes beaconRing {
+      0% { transform: scale(0.5); opacity: 0.2; }
+      50% { opacity: 1; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+
+    /* SIDEBAR & BOUTON 49.3 */
+    #event-sidebar {
+      flex: 0.85;
+      background: var(--bg-main);
+      border-left: 1px solid var(--border-color);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      z-index: 20;
+      overflow-y: auto;
+    }
+
+    .event-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .location-badge {
+      background: var(--accent-blue);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+
+    .event-category {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+
+    #event-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    #event-desc {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .actions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .btn-choice {
+      background: #f8fafc;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--text-main);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      text-align: left;
+      transition: all 0.2s;
+    }
+
+    .btn-choice:hover {
+      background: #f1f5f9;
+      border-color: var(--accent-blue);
+      transform: translateY(-2px);
+    }
+
+    .btn-choice .label { font-size: 11.5px; font-weight: 700; }
+    .btn-choice .effects { font-size: 10.5px; color: var(--accent-yellow); font-weight: 600; }
+
+    .btn-493 {
+      background: linear-gradient(135deg, #7c3aed, #6d28d9);
+      color: #ffffff;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+      transition: all 0.2s;
+      margin-top: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-493:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
+    }
+
+    .btn-493:disabled {
+      background: #cbd5e1;
+      box-shadow: none;
+      cursor: not-allowed;
+      color: #64748b;
+    }
+
+    /* MODALE 49.3 */
+    .modal-493-card {
+      max-width: 500px !important;
+      text-align: left !important;
+    }
+
+    .modal-493-card h2 {
+      color: var(--accent-purple);
+      margin-bottom: 6px;
+      font-size: 18px;
+    }
+
+    .modal-493-card p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    .decret-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .btn-decret {
+      background: #f8fafc;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      transition: all 0.2s;
+    }
+
+    .btn-decret:hover {
+      border-color: var(--accent-purple);
+      background: #f3e8ff;
+    }
+
+    .btn-decret strong {
+      font-size: 12px;
+      color: var(--text-main);
+    }
+
+    .btn-decret span {
+      font-size: 11px;
+      color: var(--accent-purple);
+      font-weight: 600;
+    }
+
+    .btn-close-493 {
+      background: #e2e8f0;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(245, 242, 235, 0.92);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 200;
+    }
+
+    .overlay-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      max-width: 440px;
+      box-shadow: 0 20px 25px rgba(0,0,0,0.1);
+    }
+
+    #end-status { color: var(--accent-red); font-size: 22px; margin-bottom: 10px; font-weight: 800; }
+    #end-message { font-size: 14px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.4; }
+    .btn-restart { margin-top: 15px; padding: 12px 24px; background: var(--accent-green); color: #fff; border: none; border-radius: 6px; font-weight: 800; cursor: pointer; }
+    .hidden { display: none !important; }
+
+    /* MEDIA QUERIES POUR SMARTPHONES */
+    @media (max-width: 768px) {
+      body {
+        overflow: auto;
+        height: auto;
+        display: block;
+      }
+      #game-app {
+        width: 100vw;
+        height: auto;
+        max-height: none;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      #hud {
+        height: auto;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        padding: 8px;
+      }
+      #game-body {
+        flex-direction: column;
+        height: auto;
+      }
+      #map-container {
+        height: 300px;
+        flex: none;
+        width: 100%;
+      }
+      #event-sidebar {
+        flex: none;
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+        padding: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-app">
+    
+    <!-- BARRE DE SCORE SUPERIEURE (HUD) -->
+    <header id="hud">
+      <div class="hud-card">
+        <span class="hud-title">Dette Publique</span>
+        <span class="hud-value money" id="dette-val">3 100 Mds €</span>
+      </div>
+
+      <div class="hud-card highlight-card">
+        <span class="hud-title">Compte Suisse Secret</span>
+        <span class="hud-value Swiss-gold" id="cagnotte-val">0 M€</span>
+      </div>
+
+      <div class="hud-card">
+        <div class="hud-header">
+          <span class="hud-title">Popularité</span>
+          <span class="hud-sub" id="pop-val">50%</span>
+        </div>
+        <div class="bar-container">
+          <div class="bar-fill pop" id="pop-bar" style="width: 50%;"></div>
+        </div>
+      </div>
+
+      <div class="hud-card">
+        <div class="hud-header">
+          <span class="hud-title">Tension Sociale</span>
+          <span class="hud-sub" id="tension-val">20%</span>
+        </div>
+        <div class="bar-container">
+          <div class="bar-fill tension" id="tension-bar" style="width: 20%;"></div>
+        </div>
+      </div>
+
+      <div class="hud-card">
+        <span class="hud-title">Mandat</span>
+        <span class="hud-value" id="time-val">Mois 1 ⏱️ 30s</span>
+      </div>
+    </header>
+
+    <!-- ZONE PRINCIPALE DE JEU -->
+    <main id="game-body">
+      
+      <!-- CONTENEUR CARTE HORIZONTAL -->
+      <section id="map-container">
+        <div class="map-inner-wrapper">
+          <img id="europe-map-img" src="carte.png" alt="Carte d'Europe" />
+          <div id="cities-layer"></div>
+          <div id="target-beacon" class="hidden">
+            <div class="beacon-ring"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PANNEAU ÉVÉNEMENT / DILEMME POLITIQUE -->
+      <aside id="event-sidebar">
+        <div class="event-card">
+          <div class="card-top">
+            <span class="location-badge" id="event-city">PARIS</span>
+            <span class="event-category" id="event-type">CRISE NATIONALE</span>
+          </div>
+          
+          <h2 id="event-title">Chargement de la crise...</h2>
+          <p id="event-desc">Initialisation de la situation...</p>
+          
+          <div class="actions-list">
+            <button class="btn-choice" id="choice-a">
+              <span class="label" id="text-a">Option A</span>
+              <span class="effects" id="impact-a">+0 Mds €</span>
+            </button>
+            <button class="btn-choice" id="choice-b">
+              <span class="label" id="text-b">Option B</span>
+              <span class="effects" id="impact-b">+0 Mds €</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- BOUTON ULTIME 49.3 -->
+        <button id="btn-493" class="btn-493">
+          📜 ENGAGER LE 49.3 (Disponible)
+        </button>
+      </aside>
+
+    </main>
+
+    <!-- MODALE DU 49.3 -->
+    <div id="modal-493" class="overlay hidden">
+      <div class="overlay-card modal-493-card">
+        <h2>🏛️ ENGAGEMENT DE L'ARTICLE 49.3</h2>
+        <p>Passez une loi en force sans le vote de l'Assemblée Nationale ! Choisissez un décret :</p>
+        
+        <div class="decret-list">
+          <button class="btn-decret" id="decret-1">
+            <strong>👴 Réforme des Retraites Flash</strong>
+            <span>-200 Mds € Dette • +35% Tension • -15% Pop</span>
+          </button>
+          <button class="btn-decret" id="decret-2">
+            <strong>💼 Niche Fiscale "Très Hauts Revenus"</strong>
+            <span>+100 M€ en Suisse • ⚠️ +40% Soupçon</span>
+          </button>
+          <button class="btn-decret" id="decret-3">
+            <strong>🏗️ Vente d'Actifs au Qatar/USA</strong>
+            <span>+150 Mds € Dette résorbée • +50 M€ Suisse • +25% Tension</span>
+          </button>
+          <button class="btn-decret" id="decret-4">
+            <strong>🛡️ État d'Urgence Sécuritaire</strong>
+            <span>Divise la Tension Sociale par 2 • +100 Mds € Dette</span>
+          </button>
+        </div>
+
+        <button class="btn-close-493" id="btn-close-493">ANNULER</button>
+      </div>
+    </div>
+
+    <!-- POPUP FIN DE PARTIE -->
+    <div id="end-overlay" class="overlay hidden">
+      <div class="overlay-card">
+        <h1 id="end-status">BILAN DU MANDAT</h1>
+        <p id="end-message">Résumé des conséquences...</p>
+        <div id="end-metrics"></div>
+        <button class="btn-restart" onclick="location.reload()">RECOMMENCER UNE PARTIE</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // COORDONNÉES EXACTES DES VILLES
+    const CITIES = {
+      "Paris": { x: 25, y: 50, capital: true },
+      "Marseille": { x: 30, y: 63, capital: false },
+      "Lyon": { x: 27, y: 57, capital: false },
+      "Strasbourg": { x: 32, y: 50, capital: false },
+      "Bordeaux": { x: 20, y: 61, capital: false },
+      "Lille": { x: 24, y: 45, capital: false },
+      "Londres": { x: 19, y: 42, capital: true },
+      "Dublin": { x: 11, y: 37, capital: true },
+      "Amsterdam": { x: 27.5, y: 39, capital: true },
+      "Bruxelles": { x: 27.8, y: 44, capital: true },
+      "Berlin": { x: 39, y: 38, capital: true },
+      "Vienne": { x: 43, y: 52, capital: true },
+      "Madrid": { x: 19, y: 69, capital: true },
+      "Lisbonne": { x: 7.8, y: 71, capital: true },
+      "Rome": { x: 38, y: 63, capital: true },
+      "Varsovie": { x: 54, y: 41, capital: true },
+      "Athènes": { x: 55, y: 78, capital: true },
+      "Kyiv": { x: 67, y: 45, capital: true },
+      "Moscou": { x: 76, y: 30, capital: true }
+    };
+
+    // BANQUE D'ÉVÉNEMENTS
+    const EVENTS = [
+      {
+        type: "ÉNERGIE & ATOME",
+        city: "Lyon",
+        title: "Maintenance Critique des Centrales",
+        desc: "Plusieurs réacteurs nucléaires nécessitent des réparations d'urgence suite à des fissures.",
+        choiceA: { text: "Ne rien faire et repousser les travaux (+50M€ Suisse)", dette: 100, cagnotte: 50, pop: -20, tension: 25, soupcon: 30, multDette: 1.35 },
+        choiceB: { text: "Rénover massivement les réacteurs (-50M€ Suisse)", dette: 80, cagnotte: -50, pop: 15, tension: -35, soupcon: -5 }
+      },
+      {
+        type: "CRISE ÉNERGÉTIQUE",
+        city: "Berlin",
+        title: "Sabotage des Gazoducs Nordiques",
+        desc: "L'Allemagne perd ses approvisionnements en gaz. Le prix du mégawatt-heure explose.",
+        choiceA: { text: "Relancer le charbon et nationaliser les factures", dette: 95, cagnotte: 0, pop: 10, tension: -15, soupcon: -5 },
+        choiceB: { text: "Acheter du gaz liquéfié surfacturé (+55M€ Suisse)", dette: 20, cagnotte: 55, pop: -25, tension: 30, soupcon: 30 }
+      },
+      {
+        type: "INCIDENT MILITAIRE",
+        city: "Bordeaux",
+        title: "Alerte Secrète à l'Île Longue",
+        desc: "Avarie critique sur un sous-marin nucléaire lanceur d'engins dans la base bretonne.",
+        choiceA: { text: "Injecter 80 Mds € dans la modernisation urgente", dette: 80, cagnotte: 0, pop: 5, tension: -10, soupcon: -4 },
+        choiceB: { text: "Sous-traiter la réparation à une firme privée (+45M€ Suisse)", dette: 15, cagnotte: 45, pop: -20, tension: 25, soupcon: 35 }
+      },
+      {
+        type: "CATASTROPHE NATURELLE",
+        city: "Marseille",
+        title: "Sécheresse & Incendies Mégalos",
+        desc: "Le Sud brûle. Plus d'eau potable au robinet dans trois départements.",
+        choiceA: { text: "Envoyer l'armée et indemniser les sinistrés", dette: 60, cagnotte: 0, pop: 15, tension: -20, soupcon: -3 },
+        choiceB: { text: "Privatiser la distribution d'eau d'urgence (+35M€ Suisse)", dette: -10, cagnotte: 35, pop: -30, tension: 40, soupcon: 25 }
+      },
+      {
+        type: "TENSION EUROPÉENNE",
+        city: "Varsovie",
+        title: "Escalade à la Frontière Est",
+        desc: "Tensions militaires maximales aux portes de l'Europe. L'OTAN exige des renforts.",
+        choiceA: { text: "Déployer 40 000 soldats et commander des munitions", dette: 110, cagnotte: 0, pop: 10, tension: -5, soupcon: -5 },
+        choiceB: { text: "Négocier des contrats d'armement avec bonus (+70M€ Suisse)", dette: 30, cagnotte: 70, pop: -20, tension: 20, soupcon: 40 }
+      },
+      {
+        type: "CRISE RÉGIONALE",
+        city: "Strasbourg",
+        title: "Pénurie Critique de Choucroute",
+        desc: "Un déficit de choux et de saucisses met l'Alsace au bord de l'insurrection.",
+        choiceA: { text: "Subventionner l'importation massive de choux géants", dette: 30, cagnotte: 0, pop: 15, tension: -20, soupcon: -4 },
+        choiceB: { text: "Taxer le Riesling et détourner l'argent (+50M€ Suisse)", dette: 10, cagnotte: 50, pop: -25, tension: 35, soupcon: 30 }
+      },
+      {
+        type: "SERVICES PUBLICS",
+        city: "Paris",
+        title: "Grève Générale des Éboueurs",
+        desc: "Des montagnes de déchets s'accumulent sous les fenêtres des ministères.",
+        choiceA: { text: "Céder aux revendications salariales", dette: 35, cagnotte: 0, pop: 15, tension: -25, soupcon: -5 },
+        choiceB: { text: "Privatiser le ramassage via une société offshore (+30M€ Suisse)", dette: -10, cagnotte: 30, pop: -25, tension: 35, soupcon: 25 }
+      }
+    ];
+
+    let state = {
+      dette: 3100,
+      cagnotte: 0,
+      pop: 50,
+      tension: 20,
+      soupcon: 0,
+      mois: 1,
+      tauxInteret: 2.5,
+      currentEvent: null,
+      timerSeconds: 30,
+      cooldown493: 0
+    };
+
+    let timerInterval = null;
+
+    // EXÉCUTION GARANTIE
+    document.addEventListener('DOMContentLoaded', () => {
+      renderMapMarkers();
+      setupEventListeners();
+      displayNextEvent();
+    });
+
+    function renderMapMarkers() {
+      const layer = document.getElementById('cities-layer');
+      if (!layer) return;
+      layer.innerHTML = '';
+
+      for (const [name, data] of Object.entries(CITIES)) {
+        const marker = document.createElement('div');
+        marker.className = 'city-marker';
+        marker.style.left = `${data.x}%`;
+        marker.style.top = `${data.y}%`;
+
+        const dot = document.createElement('div');
+        dot.className = `dot ${data.capital ? 'capital' : ''}`;
+
+        const label = document.createElement('span');
+        label.className = 'cityName';
+        label.innerText = name;
+
+        marker.appendChild(dot);
+        marker.appendChild(label);
+        layer.appendChild(marker);
+      }
+    }
+
+    function startTimer() {
+      clearInterval(timerInterval);
+      state.timerSeconds = 30;
+      updateTimerUI();
+
+      timerInterval = setInterval(() => {
+        state.timerSeconds--;
+        updateTimerUI();
+
+        if (state.timerSeconds <= 0) {
+          clearInterval(timerInterval);
+          state.tension = Math.min(100, state.tension + 15);
+          state.pop = Math.max(0, state.pop - 10);
+          alert("⏱️ TEMPS ÉCOULÉ ! L'absence de décision du gouvernement provoque la panique (+15% Tension).");
+          handleChoice('choiceA');
+        }
+      }, 1000);
+    }
+
+    function updateTimerUI() {
+      const timeElem = document.getElementById('time-val');
+      if (timeElem) {
+        timeElem.innerText = `Mois ${state.mois} ⏱️ ${state.timerSeconds}s`;
+        timeElem.style.color = state.timerSeconds <= 8 ? '#dc2626' : 'inherit';
+      }
+    }
+
+    function displayNextEvent() {
+      checkGameStatus();
+
+      // ALERTE CAGNOTTE BASSE APRES LE MOIS 3
+      if (state.mois > 3 && state.cagnotte < 10) {
+        state.soupcon = Math.min(100, state.soupcon + 15);
+        state.tension = Math.min(100, state.tension + 10);
+        alert("⚠️ AMATEURISME FINANCIER ! Votre compte en Suisse a moins de 10 M€. Vos montages bizarres attirent les soupçons (+15% Soupçon, +10% Tension) !");
+      }
+
+      // INTÉRÊTS SUR LA DETTE
+      let interetsMensuels = Math.round((state.dette * (state.tauxInteret / 100)) / 12);
+      state.dette += interetsMensuels;
+
+      // RECHARGE DU 49.3
+      if (state.cooldown493 > 0) state.cooldown493--;
+      update493Button();
+
+      // TIRAGE D'UN ÉVÉNEMENT ALÉATOIRE
+      const idx = Math.floor(Math.random() * EVENTS.length);
+      const ev = EVENTS[idx];
+      state.currentEvent = ev;
+
+      // MISE À JOUR DU DOM
+      document.getElementById('event-city').innerText = ev.city;
+      document.getElementById('event-type').innerText = ev.type;
+      document.getElementById('event-title').innerText = ev.title;
+      document.getElementById('event-desc').innerText = ev.desc;
+
+      let surcoutTension = state.tension > 70 ? 1.5 : 1.0;
+
+      document.getElementById('text-a').innerText = ev.choiceA.text;
+      document.getElementById('impact-a').innerText = formatImpact(ev.choiceA, surcoutTension);
+
+      document.getElementById('text-b').innerText = ev.choiceB.text;
+      document.getElementById('impact-b').innerText = formatImpact(ev.choiceB, surcoutTension);
+
+      // VISEUR SUR LA CARTE
+      const cityData = CITIES[ev.city];
+      const beacon = document.getElementById('target-beacon');
+      if (cityData && beacon) {
+        beacon.style.left = `${cityData.x}%`;
+        beacon.style.top = `${cityData.y}%`;
+        beacon.classList.remove('hidden');
+      }
+
+      updateHUD(interetsMensuels);
+      startTimer();
+    }
+
+    function update493Button() {
+      const btn = document.getElementById('btn-493');
+      if (!btn) return;
+
+      if (state.cooldown493 === 0) {
+        btn.disabled = false;
+        btn.innerText = "📜 ENGAGER LE 49.3 (Disponible)";
+      } else {
+        btn.disabled = true;
+        btn.innerText = `📜 49.3 (Recharge : ${state.cooldown493} mois)`;
+      }
+    }
+
+    function formatImpact(choice, surcout) {
+      let res = [];
+      let detteCalculee = Math.round(choice.dette * (choice.multDette || 1) * surcout);
+      
+      if (detteCalculee !== 0) res.push(`${detteCalculee > 0 ? '+' : ''}${detteCalculee} Mds € Dette`);
+      if (choice.cagnotte) res.push(`${choice.cagnotte > 0 ? '+' : ''}${choice.cagnotte} M€ Suisse`);
+      
+      if (choice.soupcon) {
+        if (choice.soupcon > 0) res.push(`⚠️ +${choice.soupcon}% Soupçon`);
+        else if (choice.soupcon < 0) res.push(`🛡️ ${choice.soupcon}% Soupçon`);
+      }
+      
+      if (choice.pop !== 0) res.push(`${choice.pop > 0 ? '+' : ''}${choice.pop}% Pop`);
+      if (choice.tension !== 0) res.push(`${choice.tension > 0 ? '+' : ''}${choice.tension}% Tension`);
+      return res.join(' • ');
+    }
+
+    function setupEventListeners() {
+      document.getElementById('choice-a').addEventListener('click', () => handleChoice('choiceA'));
+      document.getElementById('choice-b').addEventListener('click', () => handleChoice('choiceB'));
+
+      document.getElementById('btn-493').addEventListener('click', open493Modal);
+      document.getElementById('btn-close-493').addEventListener('click', close493Modal);
+
+      document.getElementById('decret-1').addEventListener('click', () => applyDecret(1));
+      document.getElementById('decret-2').addEventListener('click', () => applyDecret(2));
+      document.getElementById('decret-3').addEventListener('click', () => applyDecret(3));
+      document.getElementById('decret-4').addEventListener('click', () => applyDecret(4));
+    }
+
+    function open493Modal() {
+      clearInterval(timerInterval);
+      document.getElementById('modal-493').classList.remove('hidden');
+    }
+
+    function close493Modal() {
+      document.getElementById('modal-493').classList.add('hidden');
+      startTimer();
+    }
+
+    function applyDecret(num) {
+      document.getElementById('modal-493').classList.add('hidden');
+      state.cooldown493 = 6;
+
+      if (num === 1) {
+        state.dette = Math.max(0, state.dette - 200);
+        state.tension = Math.min(100, state.tension + 35);
+        state.pop = Math.max(0, state.pop - 15);
+      } else if (num === 2) {
+        state.cagnotte += 100;
+        state.soupcon = Math.min(100, state.soupcon + 40);
+      } else if (num === 3) {
+        state.dette = Math.max(0, state.dette - 150);
+        state.cagnotte += 50;
+        state.tension = Math.min(100, state.tension + 25);
+      } else if (num === 4) {
+        state.tension = Math.round(state.tension / 2);
+        state.dette += 100;
+      }
+
+      state.mois += 1;
+      displayNextEvent();
+    }
+
+    function handleChoice(key) {
+      clearInterval(timerInterval);
+      const choice = state.currentEvent[key];
+
+      let surcoutTension = state.tension > 70 ? 1.5 : 1.0;
+      let impactDette = choice.dette * (choice.multDette || 1);
+      state.dette += Math.round(impactDette * surcoutTension);
+
+      if (choice.cagnotte) state.cagnotte += choice.cagnotte;
+      if (choice.soupcon) state.soupcon = Math.max(0, state.soupcon + choice.soupcon);
+      
+      state.pop = Math.min(100, Math.max(0, state.pop + choice.pop));
+      state.tension = Math.min(100, Math.max(0, state.tension + choice.tension));
+      
+      state.tauxInteret = (2.5 + (state.dette / 2000)).toFixed(1);
+      state.mois += 1;
+
+      displayNextEvent();
+    }
+
+    function updateHUD(interets) {
+      document.getElementById('dette-val').innerText = `${state.dette} Mds € (+${interets || 0}/m)`;
+      document.getElementById('cagnotte-val').innerText = `${state.cagnotte} M€ (Soupçon: ${state.soupcon}%)`;
+      document.getElementById('pop-bar').style.width = `${state.pop}%`;
+      document.getElementById('pop-val').innerText = `${state.pop}%`;
+      document.getElementById('tension-bar').style.width = `${state.tension}%`;
+      document.getElementById('tension-val').innerText = `${state.tension}%`;
+    }
+
+    function checkGameStatus() {
+      if (state.dette >= 10000 && state.cagnotte >= 250) {
+        clearInterval(timerInterval);
+        triggerEnd("VICTOIRE TOTALE : LE BRAQUAGE DU SIÈCLE !", `Bravo ! La dette atteint ${state.dette} Mds €, et vous vous envolez pour Zurich avec ${state.cagnotte} M€ !`);
+      } else if (state.soupcon >= 100) {
+        clearInterval(timerInterval);
+        triggerEnd("SCANDALE D'ÉTAT : Disgrâce !", "Votre indice de soupçon a atteint 100%. Mediapart a tout révélé : vous finissez en prison !");
+      } else if (state.dette >= 10000) {
+        clearInterval(timerInterval);
+        triggerEnd("FAILLITE NATIONALE !", `La France est en faillite (${state.dette} Mds € de dette). Votre compte Suisse n'a que ${state.cagnotte} M€ : c'est la faillite totale !`);
+      } else if (state.pop <= 0) {
+        clearInterval(timerInterval);
+        triggerEnd("DESTITUTION IMMÉDIATE !", "Votre popularité est tombée à 0%. L'Assemblée nationale vous a destitué !");
+      } else if (state.tension >= 100) {
+        clearInterval(timerInterval);
+        triggerEnd("RÉVOLUTION SOCIALE !", "Tension à 100% ! La rue a renversé le gouvernement !");
+      }
+    }
+
+    function triggerEnd(status, msg) {
+      document.getElementById('end-status').innerText = status;
+      document.getElementById('end-message').innerText = msg;
+      document.getElementById('end-metrics').innerHTML = `
+        <p style="margin-top:10px;">Dette finale : <strong>${state.dette} Mds €</strong></p>
+        <p>Compte Suisse : <strong>${state.cagnotte} Millions €</strong></p>
+        <p>Indice de Soupçon : <strong>${state.soupcon}%</strong></p>
+        <p>Mandat tenu : <strong>${state.mois} mois</strong></p>
+      `;
+      document.getElementById('end-overlay').classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
